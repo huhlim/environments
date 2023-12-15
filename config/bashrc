@@ -1,0 +1,73 @@
+umask 002
+export PS1="[\u@\h-\j \W]\$ "
+ulimit -s unlimited
+ulimit -n 65536
+
+if [[ -f $HOME/conda/etc/profile.d/conda.sh ]]; then
+    . $HOME/conda/etc/profile.d/conda.sh
+fi
+source $HOME/conda/conda.bashrc
+
+source $HOME/apps/apps.bashrc
+
+export SCRATCH=/feig/s2/huhlim
+export TMPDIR=/scratch
+export TEMP=$TMPDIR
+
+export PATH=$HOME/bin:$PATH
+#export PATH=$(echo $PATH | sed -s s:/usr/local/bin::g)
+
+export PYTHONPATH=$HOME/lib:$PYTHONPATH
+export PYTHONUNBUFFERED='yes'
+export PYTHONDONTWRITEBYTECODE='yes'
+#export LESS="$LESS -Q"
+export LANG=en_US.UTF-8
+
+export HOSTNAME=$(hostname)
+
+export apps=$HOME/apps
+export work=$HOME/work
+export casp=$work/casp14
+
+alias ls="ls --color=auto"
+alias lS="ls -lShr"
+alias ll="ls -lsthr"
+alias l="ls -lsh"
+alias vi='vim'
+alias vim='vim -O'
+if [[ $HOSTNAME == 'markov.bch.msu.edu' ]]; then
+    alias lv='node_status'
+else
+    alias lv='nvidia-smi'
+fi
+alias kill='kill -9'
+alias pso='ps -O ppid,%cpu,%mem'
+alias psl='ps aux | grep -v chrome | grep ^huhlim'
+alias htop='htop 2> /dev/null'
+
+alias qst='squeue -o "%.10i %9P %60j %.8u %.8T %.10M %.12l %.6D %.12b %.8C %R" | less'
+alias qstat='squeue -o "%.10i %9P %60j %.8u %.8T %.10M %.12l %.6D %.12b %.8C %R" -u huhlim | sort -k 1 -n'
+
+alias grep="grep -a --color=auto"
+alias wget="wget -c"
+
+alias abspath='readlink -f'
+alias ck='status.py check'
+
+alias cProfile='python -m cProfile -s tottime'
+alias jupyter='jupyter notebook --no-browser --port 8077'
+alias eog='display'
+alias x11='unset DISPLAY'
+
+if [[ -n $SLURM_CPUS_PER_TASK ]]; then
+    export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+    export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
+    export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
+fi
+
+export HTTP_PROXY="http://markov.bch.msu.edu:9999"
+export HTTPS_PROXY="http://markov.bch.msu.edu:9999"
+export http_proxy="http://markov.bch.msu.edu:9999"
+export https_proxy="http://markov.bch.msu.edu:9999"
+export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+

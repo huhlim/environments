@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import numpy as np
+import argparse
+
+def identify_numeric(first):
+    indx = []
+    for i,x in enumerate(first.split()):
+        try:
+            float(x)
+            indx.append(i)
+        except:
+            pass
+    return (tuple(indx),)
+
+def define_formatter(string, data):
+    n_prec = []
+    for X in string:
+        if '.' not in X:
+            n_prec.append(0)
+        else:
+            n_prec.append(len(X.split(".")[1]))
+    n_prec = max(n_prec)
+    negative = '-' in ''.join(string)
+    #
+    maxval = np.max(np.abs(data))
+    if maxval != 0.0:
+        n_digit = 1 + int(np.log10(maxval))
+    else:
+        n_digit = 1
+    #
+    n_full = n_digit + n_prec + 1
+    if negative:
+        n_full += 1
+    n_full = max(n_full, 7)
+    #
+    head = ''.join(['%','%dd'%n_full])
+    format = ''.join(['%', '%d'%n_full, '.', '%d'%n_prec, 'f'])
+    pformat= ''.join(['%', '%d'%n_full, '.2f'])
+    return head, format, pformat
+
+def run(lines, indx=[], forced_format=False):
+    if len(indx) == 0:
+        for data_start,first_line in enumerate(lines):
+            indx = identify_numeric(first_line)
+            if len(indx[0]) > 0:
+                break
+    else:
+        data_start = 0
+        indx = (tuple([i-1 for i in indx]),)
+    #
+    data = []
+    strings = []
+    for line in lines[data_start:]:
+        x = np.array(line.split())[indx]
+        strings.append(x)
+        data.append(np.array(x, dtype=float))
+    data = np.array(data).T
+    strings = np.array(strings).T
+    #
+    if forced_format:
+        header = ['%7d' for i in range(len(indx[0]))]
+        format = ['%7.4f' for i in range(len(indx[0]))]
+        pformat= ['%7.2f' for i in range(len(indx[0]))]
+    else:
+        header = []
+        format = []
+        pformat= []
+        for i in range(len(indx[0])):
+            head,form,pform = define_formatter(strings[i], data[i])
+            header.append(head)
+            format.append(form)
+            pformat.append(pform)
+    header = '  '.join(header)
+    format = '  '.join(format)
+    pformat= '  '.join(pformat)
+    #
+    n_data = len(data[0])
+    sys.stdout.write("# Number of data: %d\n"%(n_data))
+    sys.stdout.write("# %s  %s\n"%("Idx:", header%tuple(np.array(indx[0])+1)))
+    sys.stdout.write("# %s  %s\n"%("Avr:", format%tuple(np.mean(data, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Std:", format%tuple(np.std(data, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Med:", format%tuple(np.median(data, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Q1: ", format%tuple(np.percentile(data, 25, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Q3: ", format%tuple(np.percentile(data, 75, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Min:", format%tuple(np.min(data, axis=1))))
+    sys.stdout.write("# %s  %s\n"%("Max:", format%tuple(np.max(data, axis=1))))
+    #
+    positive = list(np.where(data > 0.0)[0])
+    negative = list(np.where(data < 0.0)[0])
+    n_positive = np.array([positive.count(i) for i in range(len(indx[0]))])/float(n_data)*100.0
+    n_negative = np.array([negative.count(i) for i in range(len(indx[0]))])/float(n_data)*100.0
+    sys.stdout.write("# %s  %s\n"%("+++:", pformat%tuple(n_positive)))
+    sys.stdout.write("# %s  %s\n"%("---:", pformat%tuple(n_negative)))
+
+def main():
+    arg = argparse.ArgumentParser(prog='ms')
+    arg.add_argument(dest='fp', metavar='FILE', nargs='?', default=sys.stdin, type=argparse.FileType('r'), \
+            help='data file for statistics')
+    arg.add_argument('-i', '--index', dest='indx', nargs='*', default=[], metavar='INDEX', type=int, \
+            help='column index for statistics')
+    arg.add_argument('-f', '--force', dest='force', action='store_true', default=False, \
+            help='apply forced output format "7.4f"')
+    arg = arg.parse_args()
+    #
+    # filter lines
+    running = []
+    for line in arg.fp:
+        if line.startswith("!") or line.startswith("#"):
+            continue
+        running.append(line.strip())
+    #
+    run(running, indx=arg.indx, forced_format=arg.force)
+
+if __name__=='__main__':
+    main()

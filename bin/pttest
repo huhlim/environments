@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import numpy as np
+from scipy.stats import ttest_1samp
+import scipy
+import argparse
+
+def identify_numeric(first):
+    indx = []
+    for i,x in enumerate(first.split()):
+        try:
+            float(x)
+            indx.append(i)
+        except:
+            pass
+    return (tuple(indx),)
+
+def run(lines, indx=[], null='better'):
+    first_line = lines[0]
+    if len(indx) == 0:
+        indx = identify_numeric(first_line)
+    else:
+        indx = (tuple([i-1 for i in indx]),)
+    #
+    data = []
+    for line in lines:
+        x = np.array(line.split())[indx]
+        data.append(np.array(x, dtype=float))
+    data = np.array(data).T
+    #
+    n_indx = len(indx[0])
+    pval = np.zeros((n_indx, n_indx), dtype=float)
+    for i in range(n_indx-1):
+        for j in range(i+1,n_indx):
+            if null == 'better':
+                if data[i].mean() > data[j].mean():
+                    pval[i][j] = ttest_1samp(data[i]-data[j], 0.0)[1]/2.0
+                    pval[j][i] = 1.0-ttest_1samp(data[i]-data[j], 0.0)[1]/2.0
+                else:
+                    pval[i][j] = 1.0-ttest_1samp(data[i]-data[j], 0.0)[1]/2.0
+                    pval[j][i] = ttest_1samp(data[i]-data[j], 0.0)[1]/2.0
+            else:
+                pval[i][j] = ttest_1samp(data[i]-data[j], 0.0)[1]
+                pval[j][i] = pval[i][j]
+    #
+    header = ['%6d' for i in range(n_indx)]
+    format = ['%6.1e' for i in range(n_indx)]
+    #
+    sys.stdout.write("  " + ("   ".join(header))%tuple(np.array(indx[0])+1) + '\n')
+    for i in range(n_indx):
+        sys.stdout.write("%2d  "%(indx[0][i]+1))
+        sys.stdout.write(("  ".join(format[:i]))%tuple(pval[i][:i]))
+        sys.stdout.write("         ")
+        if i != 0:
+            sys.stdout.write("  ")
+        sys.stdout.write(("  ".join(format[i+1:]))%tuple(pval[i][i+1:]))
+        sys.stdout.write("\n")
+
+
+def main():
+    arg = argparse.ArgumentParser(prog='pttest')
+    arg.add_argument(dest='fp', metavar='FILE', nargs='?', default=sys.stdin, type=argparse.FileType('r'), \
+            help='data file for statistics')
+    arg.add_argument('-i', '--index', dest='indx', nargs='*', default=[], metavar='INDEX', type=int, \
+            help='column index for statistics')
+    arg.add_argument('-n', '--null', dest='null', default='better', metavar='NULL', type=str,\
+            help='null hypothesis (better/equal)')
+    arg = arg.parse_args()
+    #
+    # filter lines
+    running = []
+    for line in arg.fp:
+        if line.startswith("!") or line.startswith("#"):
+            continue
+        running.append(line.strip())
+    #
+    run(running, indx=arg.indx, null=arg.null)
+
+if __name__=='__main__':
+    main()

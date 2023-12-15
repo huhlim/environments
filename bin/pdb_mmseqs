@@ -1,0 +1,29 @@
+#!/bin/bash
+
+PDB=/home/huhlim/db/mmseqs/pdb/current/pdb
+
+if [[ $# -eq 0 ]]; then
+    echo "usage: [pdb_mmseqs] [FA] (OUTPUT)"
+    exit -1
+fi
+
+input_fa=$(readlink -f $1)
+
+pwd=$(pwd)
+TMP_MMSEQS=$TMPDIR/mmseqs.$$
+mkdir $TMP_MMSEQS
+cd $TMP_MMSEQS
+
+mmseqs createdb $input_fa input -v 0 
+mmseqs search input $PDB output ./ --alignment-mode 3 -v 0 --max-seqs 10
+mmseqs align input $PDB output output_new -a -v 0
+mmseqs convertalis input $PDB output_new output.m8 -v 0 \
+    --format-output "query,target,fident,qlen,tlen,qstart,qend,tstart,tend,qaln,taln"
+
+cd $pwd
+if [[ $# -gt 1 ]]; then
+    cp $TMP_MMSEQS/output.m8 $2
+else
+    cat $TMP_MMSEQS/output.m8
+fi
+rm -rf $TMP_MMSEQS
