@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import sys
+import argparse
+import subprocess as sp
+
+def main():
+    arg = argparse.ArgumentParser(prog='get_jobid')
+    arg.add_argument('-s', '--state', dest='state', default='PENDING')
+    arg.add_argument('-k', '--keyword', dest='keyword', default=[], nargs='+')
+    arg.add_argument('-p', '--partition', dest="partition", default=None)
+    arg.add_argument('-n', '--node', dest='node', default=None)
+    arg.add_argument('--hold', dest='is_hold', default=False, action='store_true')
+    #
+    arg = arg.parse_args()
+    if arg.node is not None:
+        arg.state = 'RUNNING'
+    arg.state = {"P": "PENDING", "R": "RUNNING"}.get(arg.state.upper(), arg.state)
+    #
+    lines = sp.check_output(['squeue', '-h', '-u', 'huhlim', '-o', '%i %P %j %T %R']).decode("utf8").split("\n")[:-1]
+
+    selected = []
+    for line in lines:
+        job_id, partition, name, state, node = line.strip().split(maxsplit=4)
+        #
+        if arg.state != state:
+            continue
+        if arg.is_hold and ('Held' not in node):
+            continue
+        if (len(arg.keyword) > 0) and (False in [(k in name) for k in arg.keyword]):
+            continue
+        if (arg.node is not None) and (arg.node != node):
+            continue
+        if (arg.partition is not None) and (arg.partition != partition):
+            continue
+        selected.append(job_id)
+
+    selected.sort(key=lambda x: int(x))
+    for job_id in selected:
+        sys.stdout.write("%s\n"%job_id)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except BrokenPipeError:
+        pass
+
